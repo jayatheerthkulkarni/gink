@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "./cli/cli_main.h"
 #include "gink_runner.h"
 
