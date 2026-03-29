@@ -35,9 +35,9 @@
 
 #ifndef GINK_BIN_PATH
 	#if defined(_WIN32)
-		#define GINK_BIN_PATH "../../gink.exe"
+		#define GINK_BIN_PATH "../gink.exe"
 	#else
-		#define GINK_BIN_PATH "../../gink"
+		#define GINK_BIN_PATH "../gink"
 	#endif
 #endif
 

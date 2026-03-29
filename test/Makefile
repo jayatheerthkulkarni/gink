@@ -1,6 +1,7 @@
 CC = gcc
-SRC = $(shell find . -name "*.c" ! -path "./test/*")
+CFLAGS = -Wall
+SRC = $(wildcard *.c cli/*.c)
 OUT = test_runner
 
 all:
-	$(CC) $(SRC) -o $(OUT)
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT)

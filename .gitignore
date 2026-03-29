@@ -1,3 +1,4 @@
 gink
-*.o;
-test_runner
+*.o
+test/test_runner
+test/test_runner.exe
