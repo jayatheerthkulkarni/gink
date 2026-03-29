@@ -29,10 +29,25 @@ jobs:
                           if: runner.os == 'macOS'
                           run: brew install make || true
 
-                        - name: Build tests
+                        - name: Build gink (Linux/macOS)
+                          if: runner.os != 'Windows'
+                          run: make
+
+                        - name: Build tests (Linux/macOS)
+                          if: runner.os != 'Windows'
                           run: make
                           working-directory: test
 
-                        - name: Run tests
+                        - name: Run tests (Linux/macOS)
+                          if: runner.os != 'Windows'
                           run: ./test_runner
                           working-directory: test
+
+                        - name: Build + Test (Windows via bash)
+                          if: runner.os == 'Windows'
+                          shell: bash
+                          run: |
+                                  make
+                                  cd test
+                                  make
+                                  ./test_runner.exe

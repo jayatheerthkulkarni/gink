@@ -25,7 +25,10 @@
 #define COLOR_RESET   "\x1b[0m"
 
 #define PASS(msg) printf(COLOR_GREEN "PASS: %s\n" COLOR_RESET, msg)
-#define FAIL(msg) fprintf(stderr, COLOR_RED "FAIL: %s\n" COLOR_RESET, msg)
+#define FAIL(msg) do { \
+	fprintf(stderr, COLOR_RED "FAIL: %s\n" COLOR_RESET, msg); \
+	exit(1); \
+} while(0)
 #define INFO(msg) printf(COLOR_YELLOW "%s\n" COLOR_RESET, msg)
 
 #ifndef GINK_BIN_PATH
