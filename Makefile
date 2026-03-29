@@ -1,5 +1,6 @@
 CC = gcc
-SRC = $(shell find . -name "*.c" -not -path "./test/*")
+SRC = $(shell find . -name "*.c" ! -path "./test/*")
+OUT = gink
 
 all:
-	$(CC) $(SRC) -o gink
+	$(CC) $(SRC) -o $(OUT)

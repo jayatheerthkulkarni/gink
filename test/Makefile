@@ -1,7 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -DGINK_BIN_PATH="\"$(abspath ../gink)\""
-SRC = main.c cli/cli_main.c cli/init.c
+SRC = $(shell find . -name "*.c" ! -path "./test/*")
 OUT = test_runner
 
 all:
-	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
+	$(CC) $(SRC) -o $(OUT)
