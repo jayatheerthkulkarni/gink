@@ -16,7 +16,7 @@ void init_init(const int argc, const char* argv[]) {
 	int err = create_file(path, "reqter");
 
 	if(err == -1) {
-		printf("File wasn't created due to some error\n");
+		printf("Error: cannot create the rector file\n");
 		return;
 	}
 
