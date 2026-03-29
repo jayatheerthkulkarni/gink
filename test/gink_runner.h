@@ -13,10 +13,12 @@
 	#define stat _stat
 	#define mkdir(path, mode) _mkdir(path)
 	#define PATH_SEP "\\"
+	#define GINK_BIN_NAME "gink.exe"
 #else
 	#include <sys/stat.h>
 	#include <unistd.h>
 	#define PATH_SEP "/"
+	#define GINK_BIN_NAME "gink"
 #endif
 
 #define COLOR_RED     "\x1b[31m"
@@ -32,7 +34,11 @@
 #define INFO(msg) printf(COLOR_YELLOW "%s\n" COLOR_RESET, msg)
 
 #ifndef GINK_BIN_PATH
-#define GINK_BIN_PATH "../../gink"
+	#if defined(_WIN32)
+		#define GINK_BIN_PATH "../../gink.exe"
+	#else
+		#define GINK_BIN_PATH "../../gink"
+	#endif
 #endif
 
 #define TMP_ENV "./.gink_tmp"
@@ -93,13 +99,15 @@ static inline int setup_test_env(void) {
 	}
 
 	char dst_path[512];
-	snprintf(dst_path, sizeof(dst_path), "%s%s%s", TMP_ENV, PATH_SEP, "gink");
+	snprintf(dst_path, sizeof(dst_path), "%s%s%s", TMP_ENV, PATH_SEP, GINK_BIN_NAME);
 
 	if (!file_exists(GINK_BIN_PATH)) return -1;
 
 	if (copy_file(GINK_BIN_PATH, dst_path) != 0) return -1;
 
+#if !defined(_WIN32)
 	if (chmod(dst_path, 0755) != 0) return -1;
+#endif
 
 	if (chdir(TMP_ENV) != 0) return -1;
 
@@ -109,10 +117,16 @@ static inline int setup_test_env(void) {
 static inline int run_gink(const char *args) {
 	char cmd[512];
 
+#if defined(_WIN32)
+	const char *prefix = "";
+#else
+	const char *prefix = "./";
+#endif
+
 	if (args && strlen(args) > 0)
-		snprintf(cmd, sizeof(cmd), "./gink %s", args);
+		snprintf(cmd, sizeof(cmd), "%s%s %s", prefix, GINK_BIN_NAME, args);
 	else
-		snprintf(cmd, sizeof(cmd), "./gink");
+		snprintf(cmd, sizeof(cmd), "%s%s", prefix, GINK_BIN_NAME);
 
 	return system(cmd);
 }
