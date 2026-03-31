@@ -1,4 +1,5 @@
 #include "cli/init.h"
+#include "cli/check.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -28,5 +29,8 @@ int main(const int argc, const char* argv[]) {
 		init_init(argc, argv);
 	}
 
+	if(!strcmp(subcommand, "check")) {
+		check_init(argc, argv);
+	}
 
 }
