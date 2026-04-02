@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "init.h"
 #include "../lib/path.h"
+#include "../keyword.h"
 
 #define MAX_NAME_LEN 256
 
@@ -23,6 +24,11 @@ int init_init(const int argc, const char* argv[]) {
 			return 1;
 		}
 		strcpy(module_name, argv[2]);
+		if (is_keyword(module_name)) {
+			printf("Error: '%s' is a reserved keyword\n", module_name);
+			free(path);
+			return 1;
+		}
 	} else {
 		printf("Project name: ");
 		if (scanf("%255s", module_name) != 1) {

@@ -160,9 +160,35 @@ void check_reqter_long_module_name() {
 	teardown_test_env();
 }
 
+void check_reqter_keyword_rejection() {
+	INFO("Running: init rejects reserved keyword as module name");
+
+	if (setup_test_env() != 0) {
+		FAIL("failed to setup test environment");
+		return;
+	}
+
+	if (run_gink("init if") == 0) {
+		FAIL("init should fail when using a reserved keyword");
+		teardown_test_env();
+		return;
+	}
+
+	if (file_exists("./reqter")) {
+		FAIL("reqter should not be created for keyword module name");
+		teardown_test_env();
+		return;
+	}
+
+	PASS("init correctly rejects reserved keywords");
+
+	teardown_test_env();
+}
+
 void init_init() {
 	check_reqter();
 	check_reqter_content();
 	check_reqter_overwrite();
 	check_reqter_long_module_name();
+	check_reqter_keyword_rejection();
 }
