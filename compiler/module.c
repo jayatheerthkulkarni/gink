@@ -16,6 +16,19 @@
 
 #define MODULE_NAME_MAX 256
 
+static char* trim(char *str) {
+	while (*str == ' ' || *str == '\t') str++;
+
+	if (*str == 0) return str;
+
+	char *end = str + strlen(str) - 1;
+	while (end > str && (*end == ' ' || *end == '\t' || *end == '\n'))
+		end--;
+
+	*(end + 1) = '\0';
+	return str;
+}
+
 bool is_valid_module_name(const char *name) {
 	if (name == NULL) return false;
 
@@ -48,49 +61,58 @@ char* get_module_from_reqter(const char* path) {
 	size_t len = 0;
 
 	if (gink_getline(&line, &len, f) != -1) {
-		char buffer[257];
-		char extra;
+		char *p = trim(line);
 
-		int ret = sscanf(line, "module %256s%c", buffer, &extra);
+		if (strncmp(p, "module ", 7) != 0) {
+			goto cleanup;
+		}
 
-		if (ret == 2) {
+		char *name = p + 7;
+		name = trim(name);
+
+		char buffer[258];
+		strncpy(buffer, name, sizeof(buffer) - 1);
+		buffer[257] = '\0';
+
+		if (!is_valid_module_name(buffer)) {
 			const char *prefix = "module ";
 
 			fprintf(stderr, "%s\n", reqter_path);
 			fprintf(stderr, "%s%s\n", prefix, buffer);
 
 			fprintf(stderr, "%*s", (int)strlen(prefix), "");
-			for (size_t i = 0; i < strlen(buffer); i++) fputc('^', stderr);
+			for (size_t i = 0; i < strlen(buffer); i++) {
+				fputc('^', stderr);
+			}
 			fprintf(stderr, "\n");
 
-			fprintf(stderr, "%*sName is too long (max 256)\n", (int)strlen(prefix), "");
+			fprintf(stderr, "%*sInvalid module name\n", (int)strlen(prefix), "");
 
 			goto cleanup;
 		}
 
-		if (ret == 1) {
-			char *result = strdup(buffer);
-			free(line);
-			fclose(f);
-			return result;
-		}
+		char *result = strdup(buffer);
+		free(line);
+		fclose(f);
+		return result;
 	}
 
-cleanup:
-	free(line);
-	fclose(f);
-	return NULL;
+	cleanup:
+		free(line);
+		fclose(f);
+		return NULL;
 }
 
 char* get_module_from_file(char* path) {
 	FILE *f = fopen(path, "r");
-	if (!f) return NULL;
+	if (!f)
+		return NULL;
 
 	char *line = NULL;
 	size_t len = 0;
 	int in_block_comment = 0;
 
-	char *result = NULL; /** FIX: move declaration here **/
+	char *result = NULL;
 
 	while (gink_getline(&line, &len, f) != -1) {
 		char *p = line;
@@ -112,37 +134,49 @@ char* get_module_from_file(char* path) {
 				continue;
 			}
 
-			if (p[0] == '/' && p[1] == '/') break;
+			if (p[0] == '/' && p[1] == '/')
+				break;
 
 			if (*p == ' ' || *p == '\t') {
 				p++;
 				continue;
 			}
 
-			if (*p == '\n' || *p == '\0') break;
+			if (*p == '\n' || *p == '\0')
+				break;
 
-			char buffer[257];
-			char extra;
+			/** keyword check */
+			if (!strncmp(p, "module", 6) &&
+				(p[6] == ' ' || p[6] == '\t')) {
 
-			int ret = sscanf(p, "module %256s%c", buffer, &extra);
+				int i = 6;
+				while (p[i] == ' ' || p[i] == '\t') i++;
 
-			if (ret == 2) {
-				const char *prefix = "module ";
+				char *name = p + i;
+				name = trim(name);
 
-				fprintf(stderr, "%s\n", path);
-				fprintf(stderr, "%s%s\n", prefix, buffer);
+				char buffer[258];
+				strncpy(buffer, name, sizeof(buffer) - 1);
+				buffer[257] = '\0';
 
-				fprintf(stderr, "%*s", (int)strlen(prefix), "");
-				for (size_t i = 0; i < strlen(buffer); i++) fputc('^', stderr);
-				fprintf(stderr, "\n");
+				if (!is_valid_module_name(buffer)) {
+					const char *prefix = "module ";
 
-				fprintf(stderr, "%*sName is too long (max 256)\n", (int)strlen(prefix), "");
+					fprintf(stderr, "%s\n", path);
+					fprintf(stderr, "%s%s\n", prefix, buffer);
 
-				goto cleanup;
-			}
+					fprintf(stderr, "%*s", (int)strlen(prefix), "");
+					for (size_t j = 0; j < strlen(buffer); j++) {
+						fputc('^', stderr);
+					}
+					fprintf(stderr, "\n");
 
-			if (ret == 1) {
-				result = strdup(buffer); /** assign, not declare **/
+					fprintf(stderr, "%*sInvalid module name\n", (int)strlen(prefix), "");
+
+					goto cleanup;
+				}
+
+				result = strdup(buffer);
 				goto success;
 			}
 
@@ -154,7 +188,7 @@ char* get_module_from_file(char* path) {
 		free(line);
 		fclose(f);
 		return NULL;
-
+	
 	success:
 		free(line);
 		fclose(f);
