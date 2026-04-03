@@ -3,3 +3,5 @@ gink.exe
 *.o
 test_runner
 test_runner.exe
+.gink_tmp
+*.patch

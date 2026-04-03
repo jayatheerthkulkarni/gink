@@ -8,8 +8,8 @@ void check_reqter() {
 		FAIL("failed to setup test environment");
 		return;
 	}
-
-	if (run_gink("init test_project") != 0) {
+	/* The below thing is exactly 256 chars */
+	if (run_gink("init some_random_256_letter_just_to_check_if_the_code_is_doing_just_fine_also_I_realize_we_need_to_see_if_module_names_have_random_bullshit_like_starting_with_special_chars_and_stuff_like_that_this_is_already_207_words_wow_let_us_do_more_like_this_for_our_tests") != 0) {
 		FAIL("init command failed to execute");
 		teardown_test_env();
 		return;
@@ -158,28 +158,51 @@ void check_reqter_long_module_name() {
 	teardown_test_env();
 }
 
-void check_reqter_keyword_rejection() {
-	INFO("Running: init rejects reserved keyword as module name");
+void check_reqter_invalid_names() {
+	INFO("Running: init rejects invalid module names");
 
 	if (setup_test_env() != 0) {
 		FAIL("failed to setup test environment");
 		return;
 	}
 
-	if (run_gink("init if") == 0) {
-		FAIL("init should fail when using a reserved keyword");
-		teardown_test_env();
-		return;
+	const char *invalid_names[] = {
+		"if",
+		"123project",
+		"_project",
+		"test-project",
+		"test.project",
+		"test@project",
+		"test project",
+		"!project",
+		"proj$",
+		"proj#",
+	};
+
+	int total = sizeof(invalid_names) / sizeof(invalid_names[0]);
+
+	for (int i = 0; i < total; i++) {
+		char command[320];
+
+		/** quote to preserve spaces **/
+		snprintf(command, sizeof(command), "init \"%s\"", invalid_names[i]);
+
+		if (run_gink(command) == 0) {
+			printf("FAILED INPUT: %s\n", invalid_names[i]);
+			FAIL("init should fail for invalid module name");
+			teardown_test_env();
+			return;
+		}
+
+		if (file_exists("./reqter")) {
+			printf("FAILED INPUT: %s\n", invalid_names[i]);
+			FAIL("reqter should not be created for invalid module name");
+			teardown_test_env();
+			return;
+		}
 	}
 
-	if (file_exists("./reqter")) {
-		FAIL("reqter should not be created for keyword module name");
-		teardown_test_env();
-		return;
-	}
-
-	PASS("init correctly rejects reserved keywords");
-
+	PASS("all invalid module names correctly rejected");
 	teardown_test_env();
 }
 
@@ -188,5 +211,5 @@ void init_init() {
 	check_reqter_content();
 	check_reqter_overwrite();
 	check_reqter_long_module_name();
-	check_reqter_keyword_rejection();
+	check_reqter_invalid_names();
 }
