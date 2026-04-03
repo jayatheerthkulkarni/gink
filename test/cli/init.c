@@ -41,14 +41,13 @@ void check_reqter_content() {
 	}
 
 	FILE* f = fopen("./reqter", "r");
-
 	if (f == NULL) {
 		FAIL("failed to open reqter file");
 		teardown_test_env();
 		return;
 	}
 
-	char buffer[256];
+	char buffer[512];
 
 	if (fgets(buffer, sizeof(buffer), f) == NULL) {
 		FAIL("failed to read reqter content");
@@ -59,70 +58,72 @@ void check_reqter_content() {
 
 	fclose(f);
 
-	if (strncmp(buffer, "module test_project", 19) != 0) {
+	const char *expected = "module test_project\n";
+
+	if (strcmp(buffer, expected) != 0) {
 		FAIL("reqter content incorrect");
 		teardown_test_env();
 		return;
 	}
 
 	PASS("reqter content is correct");
-
 	teardown_test_env();
 }
 
 void check_reqter_overwrite() {
-	INFO("Running: init twice replaces reqter with new content");
+	INFO("Running: reqter overwrite behavior");
 
 	if (setup_test_env() != 0) {
 		FAIL("failed to setup test environment");
 		return;
 	}
 
-	if (run_gink("init first_project") != 0) {
-		FAIL("first init command failed");
+	if (run_gink("init test_project") != 0) {
+		FAIL("first init failed");
 		teardown_test_env();
 		return;
 	}
 
-	FILE* f = fopen("./reqter", "w");
-	if (f == NULL) {
-		FAIL("failed to open reqter for writing");
+	FILE *f = fopen("./reqter", "w");
+	if (!f) {
+		FAIL("failed to modify reqter");
 		teardown_test_env();
 		return;
 	}
 	fprintf(f, "corrupted content\n");
 	fclose(f);
 
-	if (run_gink("init second_project") != 0) {
-		FAIL("second init command failed");
+	if (run_gink("init test_project") != 0) {
+		FAIL("second init failed");
 		teardown_test_env();
 		return;
 	}
 
 	f = fopen("./reqter", "r");
-	if (f == NULL) {
-		FAIL("failed to open reqter after overwrite");
+	if (!f) {
+		FAIL("failed to open reqter");
 		teardown_test_env();
 		return;
 	}
 
-	char buffer[256];
-	if (fgets(buffer, sizeof(buffer), f) == NULL) {
-		FAIL("failed to read reqter after overwrite");
+	char buffer[512];
+	if (!fgets(buffer, sizeof(buffer), f)) {
+		FAIL("failed to read reqter");
 		fclose(f);
 		teardown_test_env();
 		return;
 	}
 	fclose(f);
 
-	if (strncmp(buffer, "module second_project", 21) != 0) {
-		FAIL("reqter was not properly overwritten");
+	const char *expected = "module test_project\n";
+
+	if (strcmp(buffer, expected) != 0) {
+		FAIL("reqter was not overwritten correctly");
 		teardown_test_env();
 		return;
 	}
 
-	PASS("reqter overwritten successfully with new module");
-
+	PASS("reqter overwrite works");
 	teardown_test_env();
 }
 
@@ -134,21 +135,19 @@ void check_reqter_long_module_name() {
 		return;
 	}
 
-	char long_name[300];
-	memset(long_name, 'a', sizeof(long_name) - 1);
-	long_name[sizeof(long_name) - 1] = '\0';
+	char long_name[258];
+	memset(long_name, 'a', 257);
+	long_name[257] = '\0';
 
-	char command[350];
+	char command[300];
 	snprintf(command, sizeof(command), "init %s", long_name);
 
-	/* Expect failure */
 	if (run_gink(command) == 0) {
-		FAIL("init should fail for long module name");
+		FAIL("init should fail for >256 char module name");
 		teardown_test_env();
 		return;
 	}
 
-	/* File should NOT be created */
 	if (file_exists("./reqter")) {
 		FAIL("reqter should not be created for invalid module name");
 		teardown_test_env();
@@ -156,7 +155,6 @@ void check_reqter_long_module_name() {
 	}
 
 	PASS("init correctly rejects long module names");
-
 	teardown_test_env();
 }
 
