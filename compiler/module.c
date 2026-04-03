@@ -1,11 +1,18 @@
 #include <limits.h>
 #include <stdio.h>
-#include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdbool.h>
+
 #include "../keyword.h"
+#include "../lib/path.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dirent.h>
+#endif
 
 #define MODULE_NAME_MAX 256
 
@@ -25,7 +32,6 @@ bool is_valid_module_name(const char *name) {
 		}
 	}
 
-	/** reject reserved keywords **/
 	if (is_keyword(name)) return false;
 
 	return true;
@@ -36,73 +42,60 @@ char* get_module_from_reqter(const char* path) {
 	snprintf(reqter_path, sizeof(reqter_path), "%s/reqter", path);
 
 	FILE *f = fopen(reqter_path, "r");
-	if (!f) {
-		return NULL;
-	}
+	if (!f) return NULL;
 
-	char line[1024];
+	char *line = NULL;
+	size_t len = 0;
 
-	if (fgets(line, sizeof(line), f) != NULL) {
+	if (gink_getline(&line, &len, f) != -1) {
 		char buffer[257];
 		char extra;
 
 		int ret = sscanf(line, "module %256s%c", buffer, &extra);
 
 		if (ret == 2) {
-			/** overflow: module name exceeds 256 characters */
 			const char *prefix = "module ";
 
 			fprintf(stderr, "%s\n", reqter_path);
 			fprintf(stderr, "%s%s\n", prefix, buffer);
 
 			fprintf(stderr, "%*s", (int)strlen(prefix), "");
-			for (size_t i = 0; i < strlen(buffer); i++) {
-				fputc('^', stderr);
-			}
+			for (size_t i = 0; i < strlen(buffer); i++) fputc('^', stderr);
 			fprintf(stderr, "\n");
 
 			fprintf(stderr, "%*sName is too long (max 256)\n", (int)strlen(prefix), "");
 
-			fclose(f);
-			return NULL;
+			goto cleanup;
 		}
 
 		if (ret == 1) {
-			/** valid module name */
 			char *result = strdup(buffer);
+			free(line);
 			fclose(f);
 			return result;
 		}
 	}
 
-	/** no valid module line found */
+cleanup:
+	free(line);
 	fclose(f);
 	return NULL;
 }
 
-/*
- * This is not as strict as reqter
- * reqter is expected to have module <name> in the very
- * first line.
- * While the code files may have comments in the whole file.
- * Therefore we need to be very careful at this function.
- */
-
 char* get_module_from_file(char* path) {
 	FILE *f = fopen(path, "r");
-	if (!f) {
-		return NULL;
-	}
+	if (!f) return NULL;
 
 	char *line = NULL;
 	size_t len = 0;
 	int in_block_comment = 0;
 
-	while (getline(&line, &len, f) != -1) {
+	char *result = NULL; /** FIX: move declaration here **/
+
+	while (gink_getline(&line, &len, f) != -1) {
 		char *p = line;
 
 		while (*p) {
-			/** handle block comments */
 			if (in_block_comment) {
 				if (p[0] == '*' && p[1] == '/') {
 					in_block_comment = 0;
@@ -113,93 +106,93 @@ char* get_module_from_file(char* path) {
 				continue;
 			}
 
-			/** start of block comment */
 			if (p[0] == '/' && p[1] == '*') {
 				in_block_comment = 1;
 				p += 2;
 				continue;
 			}
 
-			/** line comment: ignore rest of line */
-			if (p[0] == '/' && p[1] == '/') {
-				break;
-			}
+			if (p[0] == '/' && p[1] == '/') break;
 
-			/** skip whitespace */
 			if (*p == ' ' || *p == '\t') {
 				p++;
 				continue;
 			}
 
-			/** empty or newline */
-			if (*p == '\n' || *p == '\0') {
-				break;
-			}
+			if (*p == '\n' || *p == '\0') break;
 
-			/** attempt parse only at first meaningful token */
 			char buffer[257];
 			char extra;
 
 			int ret = sscanf(p, "module %256s%c", buffer, &extra);
 
 			if (ret == 2) {
-				/** overflow detected */
 				const char *prefix = "module ";
 
 				fprintf(stderr, "%s\n", path);
 				fprintf(stderr, "%s%s\n", prefix, buffer);
 
 				fprintf(stderr, "%*s", (int)strlen(prefix), "");
-				for (size_t i = 0; i < strlen(buffer); i++) {
-					fputc('^', stderr);
-				}
+				for (size_t i = 0; i < strlen(buffer); i++) fputc('^', stderr);
 				fprintf(stderr, "\n");
 
 				fprintf(stderr, "%*sName is too long (max 256)\n", (int)strlen(prefix), "");
 
-				free(line);
-				fclose(f);
-				return NULL;
+				goto cleanup;
 			}
 
 			if (ret == 1) {
-				/** valid module found */
-				char *result = strdup(buffer);
-				free(line);
-				fclose(f);
-				return result;
+				result = strdup(buffer); /** assign, not declare **/
+				goto success;
 			}
 
-			/** not a module line */
 			break;
 		}
 	}
 
-	/** no module found */
-	free(line);
-	fclose(f);
-	return NULL;
+	cleanup:
+		free(line);
+		fclose(f);
+		return NULL;
+
+	success:
+		free(line);
+		fclose(f);
+		return result;
 }
 
-/* TODO: Add stat() fallback for DT_UNKNOWN when Gink takes over the world */
-void compiler_check_modules(char* path) {
-#ifdef _WIN32
-	compiler_check_modules_windows(path);
-	return;
-#else
 
+static void check_file(char* full_path, char* reqter_module) {
+	char* file_module = get_module_from_file(full_path);
+
+	if (file_module) {
+		if (!reqter_module) {
+			printf("Error: file defines module but reqter missing: %s\n", full_path);
+		} else if (strcmp(reqter_module, file_module) != 0) {
+			printf("Module mismatch:\n");
+			printf("  File: %s\n", full_path);
+			printf("  Expected: %s\n", reqter_module);
+			printf("  Found: %s\n", file_module);
+		}
+	}
+
+	free(file_module);
+}
+
+#ifndef _WIN32
+
+void compiler_check_modules(char* path) {
 	DIR *dp = opendir(path);
-	if (dp == NULL) {
+	if (!dp) {
 		printf("Error: cannot open directory %s\n", path);
 		return;
 	}
 
 	struct dirent *entry;
-	char* reqter_path = get_module_from_reqter(path);
+	char* reqter_module = get_module_from_reqter(path);
 
 	while ((entry = readdir(dp)) != NULL) {
-		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-			/* Gink doesn't consider . and .. files as valid */
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
 			continue;
 
 		char full_path[PATH_MAX];
@@ -208,15 +201,47 @@ void compiler_check_modules(char* path) {
 		if (entry->d_type == DT_DIR) {
 			compiler_check_modules(full_path);
 		} else {
-			/*
-			 * If we are here
-			 * we are looking at a file.
-			 */
-
+			check_file(full_path, reqter_module);
 		}
 	}
 
+	free(reqter_module);
 	closedir(dp);
-#endif
-
 }
+
+#else
+
+void compiler_check_modules(char* path) {
+	char search_path[MAX_PATH];
+	snprintf(search_path, sizeof(search_path), "%s\\*", path);
+
+	WIN32_FIND_DATA fd;
+	HANDLE h = FindFirstFile(search_path, &fd);
+
+	if (h == INVALID_HANDLE_VALUE) {
+		printf("Error: cannot open directory %s\n", path);
+		return;
+	}
+
+	char* reqter_module = get_module_from_reqter(path);
+
+	do {
+		if (!strcmp(fd.cFileName, ".") || !strcmp(fd.cFileName, ".."))
+			continue;
+
+		char full_path[MAX_PATH];
+		snprintf(full_path, sizeof(full_path), "%s\\%s", path, fd.cFileName);
+
+		if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			compiler_check_modules(full_path);
+		} else {
+			check_file(full_path, reqter_module);
+		}
+
+	} while (FindNextFile(h, &fd));
+
+	free(reqter_module);
+	FindClose(h);
+}
+
+#endif

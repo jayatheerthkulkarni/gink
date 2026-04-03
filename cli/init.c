@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include "init.h"
 #include "../lib/path.h"
-#include "../keyword.h"
 #include "../compiler/module.h"
 
 #define MAX_NAME_LEN 512	/* usable characters */
