@@ -97,10 +97,10 @@ char* get_module_from_reqter(const char* path) {
 		return result;
 	}
 
-	cleanup:
-		free(line);
-		fclose(f);
-		return NULL;
+cleanup:
+	free(line);
+	fclose(f);
+	return NULL;
 }
 
 char* get_module_from_file(char* path) {
@@ -145,7 +145,6 @@ char* get_module_from_file(char* path) {
 			if (*p == '\n' || *p == '\0')
 				break;
 
-			/** keyword check */
 			if (!strncmp(p, "module", 6) &&
 				(p[6] == ' ' || p[6] == '\t')) {
 
@@ -154,6 +153,33 @@ char* get_module_from_file(char* path) {
 
 				char *name = p + i;
 				name = trim(name);
+
+				size_t nlen = strlen(name);
+
+				if (nlen == 0 || name[nlen - 1] != ';') {
+					const char *prefix = "module ";
+
+					fprintf(stderr, "%s\n", path);
+					fprintf(stderr, "%s%s\n", prefix, name);
+
+					fprintf(stderr, "%*s", (int)strlen(prefix), "");
+					for (size_t j = 0; j < strlen(name); j++) {
+						fputc('^', stderr);
+					}
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "%*sMissing ';' after module name\n", (int)strlen(prefix), "");
+
+					goto cleanup;
+				}
+
+				name[nlen - 1] = '\0';
+				name = trim(name);
+
+				if (*name == '\0') {
+					fprintf(stderr, "%s\nInvalid module declaration (empty name)\n", path);
+					goto cleanup;
+				}
 
 				char buffer[258];
 				strncpy(buffer, name, sizeof(buffer) - 1);
@@ -195,7 +221,6 @@ char* get_module_from_file(char* path) {
 		return result;
 }
 
-
 static void check_file(char* full_path, char* reqter_module) {
 	char* file_module = get_module_from_file(full_path);
 
@@ -235,6 +260,9 @@ void compiler_check_modules(char* path) {
 		if (entry->d_type == DT_DIR) {
 			compiler_check_modules(full_path);
 		} else {
+			if (strcmp(entry->d_name, "reqter") == 0)
+				continue;
+
 			check_file(full_path, reqter_module);
 		}
 	}
@@ -269,6 +297,9 @@ void compiler_check_modules(char* path) {
 		if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 			compiler_check_modules(full_path);
 		} else {
+			if (strcmp(fd.cFileName, "reqter") == 0)
+				continue;
+
 			check_file(full_path, reqter_module);
 		}
 

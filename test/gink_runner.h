@@ -136,4 +136,12 @@ static inline void teardown_test_env(void) {
 	remove_dir(TMP_ENV);
 }
 
+static void write_file(const char* name, const char* content) {
+	FILE* f = fopen(name, "w");
+	if (f) {
+		fputs(content, f);
+		fclose(f);
+	}
+}
+
 #endif
