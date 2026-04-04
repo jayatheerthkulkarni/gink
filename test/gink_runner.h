@@ -11,7 +11,6 @@
 	#include <sys/stat.h>
 	#include <direct.h>
 	#define stat _stat
-	#define mkdir(path, mode) _mkdir(path)
 	#define PATH_SEP "\\"
 	#define GINK_BIN_NAME "gink.exe"
 #else
@@ -42,6 +41,14 @@
 #endif
 
 #define TMP_ENV "./.gink_tmp"
+
+static inline int gink_mkdir(const char *path) {
+#if defined(_WIN32)
+	return _mkdir(path);
+#else
+	return mkdir(path, 0755);
+#endif
+}
 
 static inline int file_exists(const char *path) {
 	struct stat buffer;
@@ -86,7 +93,13 @@ static inline void remove_dir(const char *path) {
 			continue;
 
 		snprintf(fullpath, sizeof(fullpath), "%s%s%s", path, PATH_SEP, entry->d_name);
-		remove(fullpath);
+
+		struct stat st;
+		if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode)) {
+			remove_dir(fullpath);
+		} else {
+			remove(fullpath);
+		}
 	}
 
 	closedir(d);
@@ -94,22 +107,25 @@ static inline void remove_dir(const char *path) {
 }
 
 static inline int setup_test_env(void) {
-	if (mkdir(TMP_ENV, 0755) != 0) {
-		if (errno != EEXIST) return -1;
-	}
+	if (gink_mkdir(TMP_ENV) != 0 && errno != EEXIST)
+		return -1;
 
 	char dst_path[512];
 	snprintf(dst_path, sizeof(dst_path), "%s%s%s", TMP_ENV, PATH_SEP, GINK_BIN_NAME);
 
-	if (!file_exists(GINK_BIN_PATH)) return -1;
+	if (!file_exists(GINK_BIN_PATH))
+		return -1;
 
-	if (copy_file(GINK_BIN_PATH, dst_path) != 0) return -1;
+	if (copy_file(GINK_BIN_PATH, dst_path) != 0)
+		return -1;
 
 #if !defined(_WIN32)
-	if (chmod(dst_path, 0755) != 0) return -1;
+	if (chmod(dst_path, 0755) != 0)
+		return -1;
 #endif
 
-	if (chdir(TMP_ENV) != 0) return -1;
+	if (chdir(TMP_ENV) != 0)
+		return -1;
 
 	return 0;
 }
@@ -118,7 +134,7 @@ static inline int run_gink(const char *args) {
 	char cmd[512];
 
 #if defined(_WIN32)
-	const char *prefix = "";
+	const char *prefix = ".\\";
 #else
 	const char *prefix = "./";
 #endif
@@ -136,12 +152,16 @@ static inline void teardown_test_env(void) {
 	remove_dir(TMP_ENV);
 }
 
-static void write_file(const char* name, const char* content) {
+static inline void write_file(const char* name, const char* content) {
 	FILE* f = fopen(name, "w");
 	if (f) {
 		fputs(content, f);
 		fclose(f);
 	}
+}
+
+static inline void create_dir(const char* name) {
+	gink_mkdir(name);
 }
 
 #endif
