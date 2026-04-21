@@ -16,6 +16,7 @@
 #else
 	#include <sys/stat.h>
 	#include <unistd.h>
+	#include <limits.h>
 	#define PATH_SEP "/"
 	#define GINK_BIN_NAME "gink"
 #endif
@@ -41,6 +42,8 @@
 #endif
 
 #define TMP_ENV "./.gink_tmp"
+
+extern char* real_path;
 
 static inline int gink_mkdir(const char *path) {
 #if defined(_WIN32)
@@ -89,67 +92,98 @@ static inline void remove_dir(const char *path) {
 	char fullpath[512];
 
 	while ((entry = readdir(d)) != NULL) {
-		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
 			continue;
 
-		snprintf(fullpath, sizeof(fullpath), "%s%s%s", path, PATH_SEP, entry->d_name);
+		snprintf(fullpath, sizeof(fullpath), "%s%s%s",
+			path, PATH_SEP, entry->d_name);
 
 		struct stat st;
-		if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode)) {
+
+		if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode))
 			remove_dir(fullpath);
-		} else {
+		else
 			remove(fullpath);
-		}
 	}
 
 	closedir(d);
 	rmdir(path);
 }
 
-static inline int setup_test_env(void) {
-	if (gink_mkdir(TMP_ENV) != 0 && errno != EEXIST)
+static inline int cd(const char *path) {
+	if (!path || !*path) {
+		errno = EINVAL;
 		return -1;
+	}
 
-	char dst_path[512];
-	snprintf(dst_path, sizeof(dst_path), "%s%s%s", TMP_ENV, PATH_SEP, GINK_BIN_NAME);
+#if defined(_WIN32)
+	return _chdir(path);
+#else
+	return chdir(path);
+#endif
+}
+
+static inline void setup(void) {
+	if (gink_mkdir(TMP_ENV) != 0 && errno != EEXIST)
+		FAIL("failed to create temp root");
+
+	char dst[512];
+
+	snprintf(dst, sizeof(dst), "%s%s%s",
+		TMP_ENV, PATH_SEP, GINK_BIN_NAME);
 
 	if (!file_exists(GINK_BIN_PATH))
-		return -1;
+		FAIL("gink binary missing");
 
-	if (copy_file(GINK_BIN_PATH, dst_path) != 0)
-		return -1;
+	if (copy_file(GINK_BIN_PATH, dst) != 0)
+		FAIL("failed to copy gink binary");
 
 #if !defined(_WIN32)
-	if (chmod(dst_path, 0755) != 0)
-		return -1;
+	if (chmod(dst, 0755) != 0)
+		FAIL("chmod failed");
 #endif
 
-	if (chdir(TMP_ENV) != 0)
-		return -1;
+	real_path = realpath(dst, NULL);
 
-	return 0;
+	if (!real_path)
+		FAIL("failed resolving absolute path");
+
+	PASS("global setup complete");
+}
+
+static inline int setup_test_env(void) {
+	remove_dir("./work");
+	gink_mkdir("./work");
+	return cd("./work");
+}
+
+static inline void teardown_test_env(void) {
+	cd("..");
+	remove_dir("./work");
 }
 
 static inline int run_gink(const char *args) {
-	char cmd[512];
+	char cmd[1024];
 
-#if defined(_WIN32)
-	const char *prefix = ".\\";
-#else
-	const char *prefix = "./";
-#endif
+	if (!real_path)
+		return -1;
 
 	if (args && strlen(args) > 0)
-		snprintf(cmd, sizeof(cmd), "%s%s %s", prefix, GINK_BIN_NAME, args);
+		snprintf(cmd, sizeof(cmd), "\"%s\" %s", real_path, args);
 	else
-		snprintf(cmd, sizeof(cmd), "%s%s", prefix, GINK_BIN_NAME);
+		snprintf(cmd, sizeof(cmd), "\"%s\"", real_path);
 
 	return system(cmd);
 }
 
-static inline void teardown_test_env(void) {
-	chdir("..");
+static inline void teardown(void) {
+	if (real_path) {
+		free(real_path);
+		real_path = NULL;
+	}
+
 	remove_dir(TMP_ENV);
+	PASS("global teardown complete");
 }
 
 static inline void write_file(const char* name, const char* content) {

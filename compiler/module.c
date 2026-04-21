@@ -103,7 +103,9 @@ cleanup:
 	return NULL;
 }
 
-char* get_module_from_file(char* path) {
+char* get_module_from_file(char* path, int* has_error) {
+	if (has_error) *has_error = 0;
+
 	FILE *f = fopen(path, "r");
 	if (!f)
 		return NULL;
@@ -170,6 +172,7 @@ char* get_module_from_file(char* path) {
 
 					fprintf(stderr, "%*sMissing ';' after module name\n", (int)strlen(prefix), "");
 
+					if (has_error) *has_error = 1;
 					goto cleanup;
 				}
 
@@ -178,6 +181,7 @@ char* get_module_from_file(char* path) {
 
 				if (*name == '\0') {
 					fprintf(stderr, "%s\nInvalid module declaration (empty name)\n", path);
+					if (has_error) *has_error = 1;
 					goto cleanup;
 				}
 
@@ -199,6 +203,7 @@ char* get_module_from_file(char* path) {
 
 					fprintf(stderr, "%*sInvalid module name\n", (int)strlen(prefix), "");
 
+					if (has_error) *has_error = 1;
 					goto cleanup;
 				}
 
@@ -210,45 +215,53 @@ char* get_module_from_file(char* path) {
 		}
 	}
 
-	cleanup:
-		free(line);
-		fclose(f);
-		return NULL;
-	
-	success:
-		free(line);
-		fclose(f);
-		return result;
+cleanup:
+	free(line);
+	fclose(f);
+	return NULL;
+
+success:
+	free(line);
+	fclose(f);
+	return result;
 }
 
-static void check_file(char* full_path, char* reqter_module) {
-	char* file_module = get_module_from_file(full_path);
+static int check_file(char* full_path, char* reqter_module) {
+	int parse_error = 0;
+	char* file_module = get_module_from_file(full_path, &parse_error);
+	int status = 0;
 
-	if (file_module) {
+	if (parse_error) {
+		status = -1;
+	} else if (file_module) {
 		if (!reqter_module) {
 			printf("Error: file defines module but reqter missing: %s\n", full_path);
+			status = -1;
 		} else if (strcmp(reqter_module, file_module) != 0) {
 			printf("Module mismatch:\n");
 			printf("  File: %s\n", full_path);
 			printf("  Expected: %s\n", reqter_module);
 			printf("  Found: %s\n", file_module);
+			status = -1;
 		}
 	}
 
 	free(file_module);
+	return status;
 }
 
 #ifndef _WIN32
 
-void compiler_check_modules(char* path) {
+int compiler_check_modules(char* path) {
 	DIR *dp = opendir(path);
 	if (!dp) {
 		printf("Error: cannot open directory %s\n", path);
-		return;
+		return -1;
 	}
 
 	struct dirent *entry;
 	char* reqter_module = get_module_from_reqter(path);
+	int overall_status = 0;
 
 	while ((entry = readdir(dp)) != NULL) {
 		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
@@ -258,22 +271,28 @@ void compiler_check_modules(char* path) {
 		snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
 		if (entry->d_type == DT_DIR) {
-			compiler_check_modules(full_path);
+			if (compiler_check_modules(full_path) == -1) {
+				overall_status = -1;
+			}
 		} else {
 			if (strcmp(entry->d_name, "reqter") == 0)
 				continue;
 
-			check_file(full_path, reqter_module);
+			if (check_file(full_path, reqter_module) == -1) {
+				overall_status = -1;
+			}
 		}
 	}
 
 	free(reqter_module);
 	closedir(dp);
+
+	return overall_status;
 }
 
 #else
 
-void compiler_check_modules(char* path) {
+int compiler_check_modules(char* path) {
 	char search_path[MAX_PATH];
 	snprintf(search_path, sizeof(search_path), "%s\\*", path);
 
@@ -282,10 +301,11 @@ void compiler_check_modules(char* path) {
 
 	if (h == INVALID_HANDLE_VALUE) {
 		printf("Error: cannot open directory %s\n", path);
-		return;
+		return -1;
 	}
 
 	char* reqter_module = get_module_from_reqter(path);
+	int overall_status = 0;
 
 	do {
 		if (!strcmp(fd.cFileName, ".") || !strcmp(fd.cFileName, ".."))
@@ -295,18 +315,24 @@ void compiler_check_modules(char* path) {
 		snprintf(full_path, sizeof(full_path), "%s\\%s", path, fd.cFileName);
 
 		if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			compiler_check_modules(full_path);
+			if (compiler_check_modules(full_path) == -1) {
+				overall_status = -1;
+			}
 		} else {
 			if (strcmp(fd.cFileName, "reqter") == 0)
 				continue;
 
-			check_file(full_path, reqter_module);
+			if (check_file(full_path, reqter_module) == -1) {
+				overall_status = -1;
+			}
 		}
 
 	} while (FindNextFile(h, &fd));
 
 	free(reqter_module);
 	FindClose(h);
+
+	return overall_status;
 }
 
 #endif
