@@ -1,3 +1,6 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include "./cli/cli_main.h"
 #include "gink_runner.h"
 

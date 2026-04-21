@@ -1,0 +1,183 @@
+Modules are one of the most important parts of the Gink programming
+language.
+
+There are two ways to compile a Gink program.
+
+i. Using a file path:
+
+This method is for people who want to build something quickly. It does
+not require a reqter file in the directory.
+
+If a reqter file is present, the file will not be treated as a single
+file.
+
+$ gink run <path_to_file>
+
+Use the above command to run a single file.
+
+ii. Using a project:
+
+More often, you will need to run a full project rather than an
+individual file. For that, Gink uses reqter files.
+
+Package managers in many languages are frustrating, so I tried to
+build an approach that takes the best ideas from different languages.
+
+To create a project, use:
+
+$ gink init <name>
+
+or
+
+$ gink init
+
+If you use `gink init` without providing a name, you will be prompted
+to enter one.
+
+You can also create a reqter file manually, but this is strongly
+discouraged. The parser is much stricter with reqter files than with
+other files. Even a trailing space can trigger an error. Since the
+file is meant to be generated automatically, the parser handles it
+with strict validation.
+
+Note that module names must be more than 0 characters and no longer
+than 256 characters.
+
+Module names also cannot be keywords. All keywords are listed in:
+
+"Chapter: Appendix - The Keywords"
+
+A module name must start with an alphabetic character. The remaining
+characters must be alphanumeric or underscores.
+
+Any other character will be rejected by both the reqter file and the
+compiler.
+
+Each directory is treated as a module. A directory will only be
+included in a project if it contains a reqter file.
+
+If a main module exists in the project, it is treated as an executable
+project.
+
+If no main module exists, it is treated as a library project.
+
+One directory can only have one reqter file and one modModules are the most important part of gink programming language.
+There are two ways you can compile a Gink program.
+
+i. Share a file path:
+This method is for people who want to spin up something quick.
+It doesn't need reqter file in the directory.
+Incase there is a reqter, the file won't be treated as a "single file".
+
+$ gink run <path_to_file>
+
+Above is the command you can use to run a file.
+
+ii. A project:
+More often you need to run a project and not just an individual file.
+For you we have reqter files.
+
+Pacakge managers are annoying for most languages.
+Therefore, I have tried to take an approach that collects the best of all languages.
+
+To create a project
+we have to use
+
+$ gink init <name>
+
+or
+
+$ gink init
+
+when you use `gink init` and not give a name, you will be given a prompt to enter a name either way.
+That being said, you can directly create reqter file. But that is highly not recommended.
+As the parser is a lot strict with reqter than with any other files.
+You might get an error at a trailing space very easily. Since the file is automatic
+the parser directly treats it strictly.
+
+Note that modules names have to be <= 256 chars and > 0 char.
+Also note that the module names cannot be a keyword.
+All the keywords are listed in "chapter: Appendix - The keywords".
+The module name should start with an alphabet, and the rest of the letters
+should either contain an alpha-numeric value or an underscore.
+Any other character would be denied by the reqter file and the compiler.
+
+Each directory is a module. Which ever directories you have a gink file
+it will only be included in a project if the director has a reqter file. 
+
+If there is a main module in the project it is treated as a executable project.
+If there is no main module in the project it is treated as a library project.
+
+One directory can have only 1 reqter file and only one module name.
+If any file has a different module name than the module name in the reqter file within a same directory, the compiler
+throws an error.
+
+Each file in a gink project should have the first logical line as module name. 
+You can have comments.
+
+e.g 
+```
+main.gink
+
+/**/
+// something
+
+/*
+
+something again
+
+*/
+
+module hello;
+```
+
+I totally get this is all hectic to keep in mind.
+Therefore, I have included a check command.
+
+You can use
+
+$ gink check --modules
+
+It will recursively go to all your directories and check you files and validity of module names.
+It will not check the files where reqter file is not present.
+It will also check the reqter file.
+ule name.
+
+If any file inside that directory uses a different module name from
+the one defined in the reqter file, the compiler will throw an error.
+
+Each file in a Gink project must have its first logical line as the
+module declaration.
+
+Comments are allowed before it.
+
+Example:
+
+```
+main.gink
+/**/
+// something
+
+/*
+
+something again
+
+*/
+
+module hello;
+```
+
+I know this is a lot to keep in mind.
+
+Because of that, I included a check command.
+
+You can use:
+
+$ gink check --modules
+
+This command will recursively scan all directories and validate your
+files and module names.
+
+It will not check directories where a reqter file is not present.
+
+It will also validate the reqter file.

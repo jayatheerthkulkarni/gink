@@ -1,7 +1,12 @@
 #ifndef GINK_RUNNER_H
 #define GINK_RUNNER_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -16,7 +21,6 @@
 #else
 	#include <sys/stat.h>
 	#include <unistd.h>
-	#include <limits.h>
 	#define PATH_SEP "/"
 	#define GINK_BIN_NAME "gink"
 #endif
@@ -143,7 +147,14 @@ static inline void setup(void) {
 		FAIL("chmod failed");
 #endif
 
+#if defined(_WIN32)
+	#ifndef _MAX_PATH
+	#define _MAX_PATH 260
+	#endif
+	real_path = _fullpath(NULL, dst, _MAX_PATH);
+#else
 	real_path = realpath(dst, NULL);
+#endif
 
 	if (!real_path)
 		FAIL("failed resolving absolute path");

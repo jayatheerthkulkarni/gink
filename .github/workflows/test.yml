@@ -47,7 +47,7 @@ jobs:
                           if: runner.os == 'Windows'
                           shell: bash
                           run: |
-                                  make
+                                  make windows
                                   cd test
                                   make
                                   ./test_runner.exe

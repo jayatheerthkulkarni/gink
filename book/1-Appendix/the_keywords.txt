@@ -1,0 +1,22 @@
+Gink uses a moderate amount of keywords.
+
+To list them here in one place clears a lot of confusion.
+
+/* Control Flow & Logic */
+"if", "else", "while", "for", "in", "break", "continue", "return", "true", "false",
+
+/* Variables & Data Structures */
+"auto", "const", "type", "struct",
+
+/* Functions & Modifiers */
+"fun", "inline",
+
+/* Memory & Resource Management */
+"unsafe", "ensure", "defer", "new",
+
+/* Modules & Visibility */
+"package", "import", "use", "as", "pub", "pri",
+
+/* Built-in Primitive Types */
+"i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "i128", "u128", "int", "uint",
+"f16", "f32", "f64", "f128", "float", "bool", "char", "string"

@@ -1,3 +1,6 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include "cli/init.h"
 #include "cli/check.h"
 #include <stdio.h>
