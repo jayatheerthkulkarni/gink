@@ -321,6 +321,46 @@ void check_modules_name_over_256_fail() {
 	teardown_test_env();
 }
 
+/*
+ * Extreme edge case: String literal containing "module"
+ * before the actual module declaration.
+ * This tests if the parser incorrectly picks up the string.
+ */
+void check_modules_string_literal_fakeout() {
+	INFO("Running: string literal fakeout (parser shouldn't be fooled)");
+
+	if (setup_test_env() != 0) {
+		FAIL("failed to setup test environment");
+		return;
+	}
+
+	if (run_gink("init actual_module") != 0) {
+		FAIL("init failed");
+		teardown_test_env();
+		return;
+	}
+
+	/*
+	 * We put a string literal before the module.
+	 * If the parser is just looking for the word "module",
+	 * it might grab "fake_module" instead of "actual_module".
+	 */
+	write_file(
+		"tricky.gink",
+		"const char* x = \"module fake_module;\";\n"
+		"module actual_module;\n"
+	);
+
+	if (run_gink("check --modules") != 0) {
+		FAIL("checker fooled by string literal or failed to find actual module");
+		teardown_test_env();
+		return;
+	}
+
+	PASS("string literal fakeout handled");
+	teardown_test_env();
+}
+
 void check_init() {
 	check_modules();
 	check_modules_weird_expected_fail();
@@ -329,4 +369,5 @@ void check_init() {
 	check_modules_comment_noise();
 	check_modules_mismatch_fail();
 	check_modules_name_over_256_fail();
+	check_modules_string_literal_fakeout();
 }
