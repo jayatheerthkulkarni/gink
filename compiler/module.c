@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 #include "../keyword.h"
-#include "../lib/path.h"
+#include "../lib/file.h"
 
 #ifdef _WIN32
 #include <windows.h>
