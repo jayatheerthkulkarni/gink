@@ -7,113 +7,95 @@
 
 #include "../keyword.h"
 #include "../lib/file.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <dirent.h>
-#endif
+#include "../lib/dir.h"
 
 #define MODULE_NAME_MAX 256
 
 static char* trim(char *str) {
-	while (*str == ' ' || *str == '\t') str++;
+	while (*str == ' ' || *str == '\t')
+		str++;
 
-	if (*str == 0) return str;
+	if (*str == '\0')
+		return str;
 
 	char *end = str + strlen(str) - 1;
-	while (end > str && (*end == ' ' || *end == '\t' || *end == '\n'))
+
+	while (end > str &&
+	      (*end == ' ' || *end == '\t' ||
+	       *end == '\n' || *end == '\r'))
 		end--;
 
-	*(end + 1) = '\0';
+	end[1] = '\0';
 	return str;
 }
 
 bool is_valid_module_name(const char *name) {
-	if (name == NULL) return false;
+	if (!name)
+		return false;
 
 	size_t len = strlen(name);
 
-	if (len == 0 || len > MODULE_NAME_MAX) return false;
-	if (!isalpha((unsigned char)name[0])) return false;
+	if (len == 0 || len > MODULE_NAME_MAX)
+		return false;
+
+	if (!isalpha((unsigned char)name[0]))
+		return false;
 
 	for (size_t i = 1; i < len; i++) {
 		unsigned char c = (unsigned char)name[i];
 
-		if (!(isalnum(c) || c == '_')) {
+		if (!(isalnum(c) || c == '_'))
 			return false;
-		}
 	}
 
-	if (is_keyword(name)) return false;
+	if (is_keyword(name))
+		return false;
 
 	return true;
 }
 
-char* get_module_from_reqter(const char* path) {
+char* get_module_from_reqter(const char *path) {
 	char reqter_path[PATH_MAX];
 	snprintf(reqter_path, sizeof(reqter_path), "%s/reqter", path);
 
 	FILE *f = fopen(reqter_path, "r");
-	if (!f) return NULL;
+	if (!f)
+		return NULL;
 
 	char *line = NULL;
 	size_t len = 0;
+	char *result = NULL;
 
 	if (gink_getline(&line, &len, f) != -1) {
 		char *p = trim(line);
 
-		if (strncmp(p, "module ", 7) != 0) {
-			goto cleanup;
+		if (!strncmp(p, "module ", 7)) {
+			char *name = trim(p + 7);
+
+			char buffer[MODULE_NAME_MAX + 2];
+			strncpy(buffer, name, sizeof(buffer) - 1);
+			buffer[sizeof(buffer) - 1] = '\0';
+
+			if (is_valid_module_name(buffer))
+				result = strdup(buffer);
 		}
-
-		char *name = p + 7;
-		name = trim(name);
-
-		char buffer[258];
-		strncpy(buffer, name, sizeof(buffer) - 1);
-		buffer[257] = '\0';
-
-		if (!is_valid_module_name(buffer)) {
-			const char *prefix = "module ";
-
-			fprintf(stderr, "%s\n", reqter_path);
-			fprintf(stderr, "%s%s\n", prefix, buffer);
-
-			fprintf(stderr, "%*s", (int)strlen(prefix), "");
-			for (size_t i = 0; i < strlen(buffer); i++) {
-				fputc('^', stderr);
-			}
-			fprintf(stderr, "\n");
-
-			fprintf(stderr, "%*sInvalid module name\n", (int)strlen(prefix), "");
-
-			goto cleanup;
-		}
-
-		char *result = strdup(buffer);
-		free(line);
-		fclose(f);
-		return result;
 	}
 
-cleanup:
 	free(line);
 	fclose(f);
-	return NULL;
+	return result;
 }
 
-char* get_module_from_file(char* path, int* has_error) {
-	if (has_error) *has_error = 0;
+char* get_module_from_file(FILE *f, int *has_error) {
+	if (has_error)
+		*has_error = 0;
 
-	FILE *f = fopen(path, "r");
 	if (!f)
 		return NULL;
 
 	char *line = NULL;
 	size_t len = 0;
 	int in_block_comment = 0;
-
 	char *result = NULL;
 
 	while (gink_getline(&line, &len, f) != -1) {
@@ -148,31 +130,19 @@ char* get_module_from_file(char* path, int* has_error) {
 				break;
 
 			if (!strncmp(p, "module", 6) &&
-				(p[6] == ' ' || p[6] == '\t')) {
+			    (p[6] == ' ' || p[6] == '\t')) {
 
 				int i = 6;
-				while (p[i] == ' ' || p[i] == '\t') i++;
 
-				char *name = p + i;
-				name = trim(name);
+				while (p[i] == ' ' || p[i] == '\t')
+					i++;
 
+				char *name = trim(p + i);
 				size_t nlen = strlen(name);
 
 				if (nlen == 0 || name[nlen - 1] != ';') {
-					const char *prefix = "module ";
-
-					fprintf(stderr, "%s\n", path);
-					fprintf(stderr, "%s%s\n", prefix, name);
-
-					fprintf(stderr, "%*s", (int)strlen(prefix), "");
-					for (size_t j = 0; j < strlen(name); j++) {
-						fputc('^', stderr);
-					}
-					fprintf(stderr, "\n");
-
-					fprintf(stderr, "%*sMissing ';' after module name\n", (int)strlen(prefix), "");
-
-					if (has_error) *has_error = 1;
+					if (has_error)
+						*has_error = 1;
 					goto cleanup;
 				}
 
@@ -180,35 +150,23 @@ char* get_module_from_file(char* path, int* has_error) {
 				name = trim(name);
 
 				if (*name == '\0') {
-					fprintf(stderr, "%s\nInvalid module declaration (empty name)\n", path);
-					if (has_error) *has_error = 1;
+					if (has_error)
+						*has_error = 1;
 					goto cleanup;
 				}
 
-				char buffer[258];
+				char buffer[MODULE_NAME_MAX + 2];
 				strncpy(buffer, name, sizeof(buffer) - 1);
-				buffer[257] = '\0';
+				buffer[sizeof(buffer) - 1] = '\0';
 
 				if (!is_valid_module_name(buffer)) {
-					const char *prefix = "module ";
-
-					fprintf(stderr, "%s\n", path);
-					fprintf(stderr, "%s%s\n", prefix, buffer);
-
-					fprintf(stderr, "%*s", (int)strlen(prefix), "");
-					for (size_t j = 0; j < strlen(buffer); j++) {
-						fputc('^', stderr);
-					}
-					fprintf(stderr, "\n");
-
-					fprintf(stderr, "%*sInvalid module name\n", (int)strlen(prefix), "");
-
-					if (has_error) *has_error = 1;
+					if (has_error)
+						*has_error = 1;
 					goto cleanup;
 				}
 
 				result = strdup(buffer);
-				goto success;
+				goto cleanup;
 			}
 
 			break;
@@ -217,25 +175,65 @@ char* get_module_from_file(char* path, int* has_error) {
 
 cleanup:
 	free(line);
-	fclose(f);
-	return NULL;
-
-success:
-	free(line);
-	fclose(f);
 	return result;
 }
 
-static int check_file(char* full_path, char* reqter_module) {
+static int check_file(char *full_path, FILE *f) {
+	if (!f) {
+		printf("Error: couldn't validate the file\n");
+		return -1;
+	}
+
+	/* skip reqter */
+	const char *base = strrchr(full_path, '/');
+
+#ifdef _WIN32
+	const char *base2 = strrchr(full_path, '\\');
+	if (!base || (base2 && base2 > base))
+		base = base2;
+#endif
+
+	base = base ? base + 1 : full_path;
+
+	if (!strcmp(base, "reqter"))
+		return 0;
+
+	char dir_path[PATH_MAX];
+	strncpy(dir_path, full_path, sizeof(dir_path) - 1);
+	dir_path[sizeof(dir_path) - 1] = '\0';
+
+	char *slash = strrchr(dir_path, '/');
+
+#ifdef _WIN32
+	char *slash2 = strrchr(dir_path, '\\');
+	if (!slash || (slash2 && slash2 > slash))
+		slash = slash2;
+#endif
+
+	if (slash)
+		*slash = '\0';
+	else
+		strcpy(dir_path, ".");
+
 	int parse_error = 0;
-	char* file_module = get_module_from_file(full_path, &parse_error);
+
+	char *file_module =
+		get_module_from_file(f, &parse_error);
+
+	char *reqter_module =
+		get_module_from_reqter(dir_path);
+
 	int status = 0;
 
 	if (parse_error) {
 		status = -1;
-	} else if (file_module) {
+		goto cleanup;
+	}
+
+	if (file_module) {
 		if (!reqter_module) {
-			printf("Error: file defines module but reqter missing: %s\n", full_path);
+			printf("Error: file defines module but reqter missing: %s\n",
+			       full_path);
 			status = -1;
 		} else if (strcmp(reqter_module, file_module) != 0) {
 			printf("Module mismatch:\n");
@@ -246,93 +244,18 @@ static int check_file(char* full_path, char* reqter_module) {
 		}
 	}
 
+cleanup:
 	free(file_module);
+	free(reqter_module);
+
 	return status;
 }
 
-#ifndef _WIN32
+int compiler_check_modules(char *path) {
+	int res = traverse_directory(path, check_file);
 
-int compiler_check_modules(char* path) {
-	DIR *dp = opendir(path);
-	if (!dp) {
-		printf("Error: cannot open directory %s\n", path);
+	if (res != 0)
 		return -1;
-	}
 
-	struct dirent *entry;
-	char* reqter_module = get_module_from_reqter(path);
-	int overall_status = 0;
-
-	while ((entry = readdir(dp)) != NULL) {
-		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
-			continue;
-
-		char full_path[PATH_MAX];
-		snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-
-		if (entry->d_type == DT_DIR) {
-			if (compiler_check_modules(full_path) == -1) {
-				overall_status = -1;
-			}
-		} else {
-			if (strcmp(entry->d_name, "reqter") == 0)
-				continue;
-
-			if (check_file(full_path, reqter_module) == -1) {
-				overall_status = -1;
-			}
-		}
-	}
-
-	free(reqter_module);
-	closedir(dp);
-
-	return overall_status;
+	return 0;
 }
-
-#else
-
-int compiler_check_modules(char* path) {
-	char search_path[MAX_PATH];
-	snprintf(search_path, sizeof(search_path), "%s\\*", path);
-
-	WIN32_FIND_DATA fd;
-	HANDLE h = FindFirstFile(search_path, &fd);
-
-	if (h == INVALID_HANDLE_VALUE) {
-		printf("Error: cannot open directory %s\n", path);
-		return -1;
-	}
-
-	char* reqter_module = get_module_from_reqter(path);
-	int overall_status = 0;
-
-	do {
-		if (!strcmp(fd.cFileName, ".") || !strcmp(fd.cFileName, ".."))
-			continue;
-
-		char full_path[MAX_PATH];
-		snprintf(full_path, sizeof(full_path), "%s\\%s", path, fd.cFileName);
-
-		if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			if (compiler_check_modules(full_path) == -1) {
-				overall_status = -1;
-			}
-		} else {
-			if (strcmp(fd.cFileName, "reqter") == 0)
-				continue;
-
-			if (check_file(full_path, reqter_module) == -1) {
-				overall_status = -1;
-			}
-		}
-
-	} while (FindNextFile(h, &fd));
-
-	free(reqter_module);
-	FindClose(h);
-
-	return overall_status;
-}
-
-#endif
