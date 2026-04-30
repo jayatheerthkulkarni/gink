@@ -181,3 +181,7 @@ files and module names.
 It will not check directories where a reqter file is not present.
 
 It will also validate the reqter file.
+
+A module name is supposed to be global in one project.
+If you are in a current directory, the directory you are in will be considered as the main project.
+Anything in the directory you are in should have unique module names.
