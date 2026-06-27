@@ -167,6 +167,8 @@ char* get_module_from_file(FILE *f, int *has_error) {
 
 				result = strdup(buffer);
 				goto cleanup;
+			} else {
+				return NULL;
 			}
 
 			break;

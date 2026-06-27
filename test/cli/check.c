@@ -361,6 +361,49 @@ void check_modules_string_literal_fakeout() {
 	teardown_test_env();
 }
 
+/*
+ * A module declaration appearing after code should not be treated as
+ * a valid module declaration. The file should simply be ignored.
+ */
+void check_modules_after_code_ignored() {
+	INFO("Running: module declaration after code is ignored");
+
+	if (setup_test_env() != 0) {
+		FAIL("failed to setup test environment");
+		return;
+	}
+
+	if (run_gink("init main") != 0) {
+		FAIL("init failed");
+		teardown_test_env();
+		return;
+	}
+
+	/*
+	 * If the parser incorrectly scans past the first logical line, it will
+	 * discover "module hello;" and report a module mismatch. A correct parser
+	 * ignores this file entirely because the first logical line is not a
+	 * module declaration.
+	 */
+	write_file(
+		"main.gink",
+		"main() {\n"
+		"\ti32 n = 4;\n"
+		"}\n"
+		"\n"
+		"module hello;\n"
+	); /* We intentionally use hello here and main above */
+
+	if (run_gink("check --modules") != 0) {
+		teardown_test_env();
+		FAIL("checker should ignore files whose first logical line is not a module declaration");
+		return;
+	}
+
+	PASS("module declaration after code correctly ignored");
+	teardown_test_env();
+}
+
 void check_init() {
 	check_modules();
 	check_modules_weird_expected_fail();
@@ -370,4 +413,5 @@ void check_init() {
 	check_modules_mismatch_fail();
 	check_modules_name_over_256_fail();
 	check_modules_string_literal_fakeout();
+	check_modules_after_code_ignored();
 }
