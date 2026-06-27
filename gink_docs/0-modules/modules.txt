@@ -12,11 +12,22 @@ If the specified file resides in a directory containing a reqter
 file, the compiler switches to project mode instead of single-file
 mode.
 
+When it switches to project mode, the file's directory is considered as root.
+Knowing this root is important. We will cover more on root in further docs.
+
 $ gink run <path_to_file>
 
 Use the above command to run a single file.
 
 ii. Using a project:
+
+You can use
+
+$ gink run .
+
+or do
+
+$ gink run <path_to_file> (Works if you have reqter)
 
 More often, you will want to compile an entire project rather than
 a single file. For that, Gink uses reqter files.
@@ -56,6 +67,17 @@ the compiler.
 
 Each directory is treated as a module. A directory is only
 considered part of a project if it contains a reqter file.
+
+A directory is ignored if it doesn't contain a reqter file.
+If the command is running using single file mode, since
+the reqter doesn't exist, we run that and only that file.
+
+If we use
+
+$ gink run .
+
+The compiler now have no idea on what to run.
+So it throws an error.
 
 If a main module exists in the project, the project is treated as
 an executable.

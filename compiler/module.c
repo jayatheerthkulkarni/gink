@@ -215,18 +215,16 @@ static int check_file(char *full_path, FILE *f) {
 		goto cleanup;
 	}
 
-	if (file_module) {
-		if (!reqter_module) {
-			printf("Error: file defines module but reqter missing: %s\n",
-			       full_path);
-			status = -1;
-		} else if (strcmp(reqter_module, file_module) != 0) {
+	if (!reqter_module)
+		return 0; /* Not a Gink module directory. */
+
+	if (file_module &&
+	    strcmp(reqter_module, file_module) != 0) {
 			printf("Module mismatch:\n");
 			printf("  File: %s\n", full_path);
 			printf("  Expected: %s\n", reqter_module);
 			printf("  Found: %s\n", file_module);
 			status = -1;
-		}
 	}
 
 cleanup:
