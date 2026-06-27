@@ -8,26 +8,9 @@
 #include "../keyword.h"
 #include "../lib/file.h"
 #include "../lib/dir.h"
+#include "../lib/string.h"
 
 #define MODULE_NAME_MAX 256
-
-static char* trim(char *str) {
-	while (*str == ' ' || *str == '\t')
-		str++;
-
-	if (*str == '\0')
-		return str;
-
-	char *end = str + strlen(str) - 1;
-
-	while (end > str &&
-	      (*end == ' ' || *end == '\t' ||
-	       *end == '\n' || *end == '\r'))
-		end--;
-
-	end[1] = '\0';
-	return str;
-}
 
 bool is_valid_module_name(const char *name) {
 	if (!name)
