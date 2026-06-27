@@ -19,3 +19,8 @@ forward before worrying about refinements):
 
   This keeps the logic simpler and avoids repeatedly resolving the
   reqter file for every file encountered.
+
+- Check all the includes and cleanup!
+
+- Make a one page API doc for all the lib APIs that we are exposing.
+  Same for test dir, the gink-runner APIs.
