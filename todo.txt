@@ -1,0 +1,21 @@
+A list of things I must do (I am too lazy,
+or, to sound a little more sophisticated, I want to move the project
+forward before worrying about refinements):
+
+- Module checking currently uses traverse_directory(), which works well
+  as a generic helper.
+
+  However, now that we skip module validation entirely when a directory
+  does not contain a reqter file, there is no reason to visit every file
+  in that directory first.
+
+  Instead, we should introduce a helper that traverses directories only.
+  File traversal should be handled by the module checker itself.
+
+  Whenever a directory path is provided:
+  1. Look for a reqter file.
+  2. If none exists, simply return.
+  3. Otherwise, validate the files within that directory.
+
+  This keeps the logic simpler and avoids repeatedly resolving the
+  reqter file for every file encountered.
