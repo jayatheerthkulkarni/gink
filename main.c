@@ -22,6 +22,11 @@ int main(const int argc, const char* argv[]) {
 		return check_init(argc, argv);
 	}
 
+	if (!strcmp(subcommand, "--version")) {
+		printf("version: 0.0.0\n");
+		return 0;
+	}
+
 	printf("Error: unknown command\n");
 	return 1;
 }
