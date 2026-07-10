@@ -135,3 +135,33 @@ module name.
 If you run the command from a directory, that directory is treated
 as the root of the current project. Every module reachable from
 that root must have a unique module name.
+
+Distinction between logical line of module vs the files to be ingored:
+
+Gink ignores files that aren't declared to be a module.
+So if the first logical line clearly doesn't end with a semi colon
+it doesn't even bother considering it as a part of the project.
+
+Therefore you have to use:
+module main;
+The semi colon after main is important.
+
+Also if you forget to add module declaration above the file
+or if it is not the first logical declaration
+the file is simply ignored by the compiler and isn't considered to be a part of the project.
+
+The errors are only diagonsed if the compiler doesn't ingore you.
+In other words
+
+If your reqter has
+module -> main
+
+Your file has
+module type
+
+Note no semi colon above, you won't get an error, cause your file is simply ignored.
+
+If your file had
+module type;
+
+Then you will get a clear error.
